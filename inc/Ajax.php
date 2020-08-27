@@ -2,6 +2,8 @@
 
 namespace dokuwiki;
 
+use dokuwiki\Utf8\Sort;
+
 /**
  * Manage all builtin AJAX calls
  *
@@ -98,7 +100,7 @@ class Ajax {
         $data = array_map('trim', $data);
         $data = array_map('noNS', $data);
         $data = array_unique($data);
-        sort($data);
+        Sort::sort($data);
 
         /* now construct a json */
         $suggestions = array(
@@ -346,7 +348,7 @@ class Ajax {
         $nsd = utf8_encodeFN(str_replace(':', '/', $ns));
 
         $data = array();
-        if($q && !$ns) {
+        if($q !== '' && $ns === '') {
 
             // use index to lookup matching pages
             $pages = ft_pageLookup($id, true);

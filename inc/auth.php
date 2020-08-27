@@ -9,20 +9,11 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-// some ACL level defines
+use dokuwiki\Extension\AuthPlugin;
+use dokuwiki\Extension\Event;
+use dokuwiki\Extension\PluginController;
 use dokuwiki\PassHash;
 use dokuwiki\Subscriptions\RegistrationSubscriptionSender;
-use dokuwiki\Extension\AuthPlugin;
-use dokuwiki\Extension\PluginController;
-use dokuwiki\Extension\Event;
-
-define('AUTH_NONE', 0);
-define('AUTH_READ', 1);
-define('AUTH_EDIT', 2);
-define('AUTH_CREATE', 4);
-define('AUTH_UPLOAD', 8);
-define('AUTH_DELETE', 16);
-define('AUTH_ADMIN', 255);
 
 /**
  * Initialize the auth system.
@@ -100,10 +91,14 @@ function auth_setup() {
         $INPUT->set('p', stripctl($INPUT->str('p')));
     }
 
-    if(!is_null($auth) && $auth->canDo('external')) {
-        // external trust mechanism in place
-        $auth->trustExternal($INPUT->str('u'), $INPUT->str('p'), $INPUT->bool('r'));
-    } else {
+    $ok = null;
+    if (!is_null($auth) && $auth->canDo('external')) {
+        $ok = $auth->trustExternal($INPUT->str('u'), $INPUT->str('p'), $INPUT->bool('r'));
+    }
+
+    if ($ok === null) {
+        // external trust mechanism not in place, or returns no result,
+        // then attempt auth_login
         $evdata = array(
             'user'     => $INPUT->str('u'),
             'password' => $INPUT->str('p'),
@@ -446,15 +441,16 @@ function auth_logoff($keepbc = false) {
  *
  * The info is available through $INFO['ismanager'], too
  *
- * @author Andreas Gohr <andi@splitbrain.org>
+ * @param string $user Username
+ * @param array $groups List of groups the user is in
+ * @param bool $adminonly when true checks if user is admin
+ * @param bool $recache set to true to refresh the cache
+ * @return bool
  * @see    auth_isadmin
  *
- * @param  string $user       Username
- * @param  array  $groups     List of groups the user is in
- * @param  bool   $adminonly  when true checks if user is admin
- * @return bool
+ * @author Andreas Gohr <andi@splitbrain.org>
  */
-function auth_ismanager($user = null, $groups = null, $adminonly = false) {
+function auth_ismanager($user = null, $groups = null, $adminonly = false, $recache=false) {
     global $conf;
     global $USERINFO;
     /* @var AuthPlugin $auth */
@@ -475,13 +471,22 @@ function auth_ismanager($user = null, $groups = null, $adminonly = false) {
         $groups = $USERINFO ? (array) $USERINFO['grps'] : array();
     }
 
-    // check superuser match
-    if(auth_isMember($conf['superuser'], $user, $groups)) return true;
-    if($adminonly) return false;
-    // check managers
-    if(auth_isMember($conf['manager'], $user, $groups)) return true;
+    // prefer cached result
+    static $cache = [];
+    $cachekey = serialize([$user, $adminonly, $groups]);
+    if (!isset($cache[$cachekey]) || $recache) {
+        // check superuser match
+        $ok = auth_isMember($conf['superuser'], $user, $groups);
 
-    return false;
+        // check managers
+        if (!$ok && !$adminonly) {
+            $ok = auth_isMember($conf['manager'], $user, $groups);
+        }
+
+        $cache[$cachekey] = $ok;
+    }
+
+    return $cache[$cachekey];
 }
 
 /**
@@ -491,15 +496,16 @@ function auth_ismanager($user = null, $groups = null, $adminonly = false) {
  *
  * The info is available through $INFO['isadmin'], too
  *
+ * @param string $user Username
+ * @param array $groups List of groups the user is in
+ * @param bool $recache set to true to refresh the cache
+ * @return bool
  * @author Andreas Gohr <andi@splitbrain.org>
  * @see auth_ismanager()
  *
- * @param  string $user       Username
- * @param  array  $groups     List of groups the user is in
- * @return bool
  */
-function auth_isadmin($user = null, $groups = null) {
-    return auth_ismanager($user, $groups, true);
+function auth_isadmin($user = null, $groups = null, $recache=false) {
+    return auth_ismanager($user, $groups, true, $recache);
 }
 
 /**

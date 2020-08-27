@@ -6,14 +6,6 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-// Constants for known core changelog line types.
-// Use these in place of string literals for more readable code.
-define('DOKU_CHANGE_TYPE_CREATE',       'C');
-define('DOKU_CHANGE_TYPE_EDIT',         'E');
-define('DOKU_CHANGE_TYPE_MINOR_EDIT',   'e');
-define('DOKU_CHANGE_TYPE_DELETE',       'D');
-define('DOKU_CHANGE_TYPE_REVERT',       'R');
-
 /**
  * parses a changelog line into it's components
  *
@@ -205,6 +197,7 @@ function addMediaLogEntry(
  *
  * RECENTS_SKIP_DELETED   - don't include deleted pages
  * RECENTS_SKIP_MINORS    - don't include minor changes
+ * RECENTS_ONLY_CREATION  - only include new created pages and media
  * RECENTS_SKIP_SUBSPACES - don't include subspaces
  * RECENTS_MEDIA_CHANGES  - return media changes instead of page changes
  * RECENTS_MEDIA_PAGES_MIXED  - return both media changes and page changes
@@ -299,6 +292,7 @@ function getRecents($first,$num,$ns='',$flags=0){
  *
  * RECENTS_SKIP_DELETED   - don't include deleted pages
  * RECENTS_SKIP_MINORS    - don't include minor changes
+ * RECENTS_ONLY_CREATION  - only include new created pages and media
  * RECENTS_SKIP_SUBSPACES - don't include subspaces
  * RECENTS_MEDIA_CHANGES  - return media changes instead of page changes
  *
@@ -372,6 +366,9 @@ function _handleRecent($line,$ns,$flags,&$seen){
 
     // skip seen ones
     if(isset($seen[$recent['id']])) return false;
+
+    // skip changes, of only new items are requested
+    if($recent['type']!==DOKU_CHANGE_TYPE_CREATE && ($flags & RECENTS_ONLY_CREATION)) return false;
 
     // skip minors
     if($recent['type']===DOKU_CHANGE_TYPE_MINOR_EDIT && ($flags & RECENTS_SKIP_MINORS)) return false;

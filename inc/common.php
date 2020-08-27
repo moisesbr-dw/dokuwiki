@@ -15,15 +15,6 @@ use dokuwiki\Extension\AuthPlugin;
 use dokuwiki\Extension\Event;
 
 /**
- * These constants are used with the recents function
- */
-define('RECENTS_SKIP_DELETED', 2);
-define('RECENTS_SKIP_MINORS', 4);
-define('RECENTS_SKIP_SUBSPACES', 8);
-define('RECENTS_MEDIA_CHANGES', 16);
-define('RECENTS_MEDIA_PAGES_MIXED', 32);
-
-/**
  * Wrapper around htmlspecialchars()
  *
  * @author Andreas Gohr <andi@splitbrain.org>
@@ -1174,9 +1165,9 @@ function parsePageTemplate(&$data) {
              $id,
              getNS($id),
              curNS($id),
-             utf8_ucfirst(curNS($id)),
-             utf8_ucwords(curNS($id)),
-             utf8_strtoupper(curNS($id)),
+             \dokuwiki\Utf8\PhpString::ucfirst(curNS($id)),
+             \dokuwiki\Utf8\PhpString::ucwords(curNS($id)),
+             \dokuwiki\Utf8\PhpString::strtoupper(curNS($id)),
              $file,
              \dokuwiki\Utf8\PhpString::ucfirst($file),
              \dokuwiki\Utf8\PhpString::strtoupper($file),
@@ -1494,7 +1485,7 @@ function notify($id, $who, $rev = '', $summary = '', $minor = false, $replace = 
         $data = array('id' => $id, 'addresslist' => '', 'self' => false, 'replacements' => $replace);
         Event::createAndTrigger(
             'COMMON_NOTIFY_ADDRESSLIST', $data,
-            array(new Subscription(), 'notifyaddresses')
+            array(new SubscriberManager(), 'notifyAddresses')
         );
         $to = $data['addresslist'];
         if(empty($to)) return false;
@@ -1664,7 +1655,7 @@ function obfuscate($email) {
             return strtr($email, $obfuscate);
 
         case 'hex' :
-            return utf8_tohtml($email, true);
+            return \dokuwiki\Utf8\Conversion::toHtml($email, true);
 
         case 'none' :
         default :
